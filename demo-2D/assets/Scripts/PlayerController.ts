@@ -7,13 +7,14 @@ import {
   Input,
   EventMouse,
   Animation,
+  EventTouch,
 } from "cc";
 const { ccclass, property } = _decorator;
 
 const BLOCK_SIZE: number = 40;
 
 @ccclass("NewComponent")
-export class NewComponent extends Component {
+export class PlayerController extends Component {
   private _startJump: boolean = false;
   private _jumpStep: number = 0;
   private _curJumpTime: number = 0;
@@ -23,11 +24,48 @@ export class NewComponent extends Component {
   private _deltaPos: Vec3 = new Vec3(0, 0, 0);
   private _targetPos: Vec3 = new Vec3();
 
+  private _curMoveIndex: number = 0;
+
+  @property(Node)
+  leftTouch: Node = null;
+
+  @property(Node)
+  rightTouch: Node = null;
+
   @property(Animation)
   public BodyAnim: Animation = null;
 
   start() {
-    input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+    // input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+  }
+
+  setInputActive(active: boolean) {
+    // if (active) {
+    //   input.on(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+    // } else {
+    //   input.off(Input.EventType.MOUSE_UP, this.onMouseUp, this);
+    // }
+
+    if (active) {
+      this.leftTouch.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
+      this.rightTouch.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
+    } else {
+      this.leftTouch.off(Input.EventType.TOUCH_START, this.onTouchStart, this);
+      this.rightTouch.off(Input.EventType.TOUCH_START, this.onTouchStart, this);
+    }
+  }
+
+  reset() {
+    this._curMoveIndex = 0;
+  }
+
+  onTouchStart(event: EventTouch) {
+    const target = event.target as Node;
+    if (target?.name == "LeftTouch") {
+      this.jumpByStep(1);
+    } else {
+      this.jumpByStep(2);
+    }
   }
 
   update(deltaTime: number) {
@@ -38,6 +76,7 @@ export class NewComponent extends Component {
         // end
         this.node.setPosition(this._targetPos); // 强制位置到终点
         this._startJump = false; // 清理跳跃标记
+        this.onOnceJumpEnd();
       }
       // else if (this._curJumpTime > this._jumpTime / 2) {
       //   this.node.getPosition(this._curPos);
@@ -75,8 +114,7 @@ export class NewComponent extends Component {
     const clipName = step === 1 ? "oneStep" : "twoStep";
     const state = this.BodyAnim.getState(clipName); // 获取动画的信息
     this._jumpTime = state.duration; // 获取动画的时间
-    
-    
+
     this._startJump = true; // 标记开始跳跃
     this._jumpStep = step; // 跳跃的步数 1 或者 2
     this._curJumpSpeed = this._jumpStep / this._jumpTime; // 根据时间计算出速度
@@ -92,5 +130,11 @@ export class NewComponent extends Component {
     if (this.BodyAnim) {
       this.BodyAnim.play(clipName);
     }
+
+    this._curMoveIndex += step;
+  }
+
+  onOnceJumpEnd() {
+    this.node.emit("JumpEnd", this._curMoveIndex);
   }
 }
